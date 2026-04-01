@@ -28,6 +28,8 @@ type Result struct {
 	ClearMessages bool
 	SkillPrompt   string // If set, send this as a prompt to the agent
 	PlanToggle    bool   // Toggle plan mode
+	SessionTitle  string // Rename current session
+	VimToggle     bool   // Toggle vim mode
 }
 
 // CommandDef defines a slash command with metadata
@@ -99,6 +101,12 @@ func AllCommands() []CommandDef {
 		{Name: "/refactor", Description: "Refactor code", HasArgs: true},
 		{Name: "/summary", Description: "Summarize project/codebase", HasArgs: true},
 		{Name: "/ask", Description: "Quick Q&A without tools", HasArgs: true},
+		// Session
+		{Name: "/rename", Description: "Rename current session", HasArgs: true},
+		// Misc
+		{Name: "/vim", Description: "Toggle vim mode"},
+		{Name: "/feedback", Description: "Report bugs or feedback"},
+		{Name: "/tips", Description: "Show a random tip"},
 	}
 }
 
@@ -234,6 +242,14 @@ func (h *Handler) Handle(input string) Result {
 		return h.summaryCmd(args)
 	case "/ask":
 		return h.askCmd(args)
+	case "/rename":
+		return h.renameCmd(args)
+	case "/vim":
+		return h.vimCmd(args)
+	case "/feedback":
+		return h.feedbackCmd(args)
+	case "/tips":
+		return h.tipsCmd(args)
 	default:
 		// Try skill invocation
 		if result, ok := h.HandleSkillInvocation(cmd, args); ok {

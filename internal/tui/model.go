@@ -359,11 +359,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.agent != nil {
 			m.syncFinalState()
 		}
+		// Update session metadata
+		if m.session != nil {
+			msgs := 0
+			if m.agent != nil {
+				msgs = len(m.agent.GetMessages())
+			}
+			m.session.UpdateMeta(m.cfg.Model, msgs, m.currentCost, "")
+		}
 		m.streamingText.Reset()
 		m.activeTools = nil
 		m.thinkingText = ""
 		m.refreshViewport()
 		m.input.Focus()
+		// Ring terminal bell to notify user
+		fmt.Print("\a")
 		return m, nil
 
 	case permissionRequestMsg:
@@ -554,6 +564,15 @@ func (m *Model) handleInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				m.blocks = append(m.blocks, DisplayBlock{
 					Type: "system", Content: fmt.Sprintf("Plan mode: %s", modeStr), Timestamp: time.Now(),
+				})
+			}
+			if result.SessionTitle != "" && m.session != nil {
+				m.session.UpdateMeta(m.cfg.Model, 0, m.currentCost, result.SessionTitle)
+			}
+			if result.VimToggle {
+				// Vim mode is tracked as a visual indicator
+				m.blocks = append(m.blocks, DisplayBlock{
+					Type: "system", Content: "Vim mode toggled (visual indicator only in this version)", Timestamp: time.Now(),
 				})
 			}
 			m.refreshViewport()

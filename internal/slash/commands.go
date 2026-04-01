@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -1045,6 +1046,65 @@ func (h *Handler) askCmd(args []string) Result {
 	return Result{
 		SkillPrompt: fmt.Sprintf("[Answer this question directly without using any tools, just from your knowledge]: %s", question),
 	}
+}
+
+// ─── /rename ──────────────────────────────────────
+
+func (h *Handler) renameCmd(args []string) Result {
+	if len(args) == 0 {
+		return Result{Message: "Usage: /rename <title>\n\nGive this session a name for easy identification in /resume."}
+	}
+	title := strings.Join(args, " ")
+	// Store in session - will be saved on next session update
+	return Result{
+		Message:      fmt.Sprintf("Session renamed to: %s", title),
+		SessionTitle: title,
+	}
+}
+
+// ─── /vim ─────────────────────────────────────────
+
+func (h *Handler) vimCmd(args []string) Result {
+	return Result{
+		Message:   "Vim mode toggled.",
+		VimToggle: true,
+	}
+}
+
+// ─── /feedback ────────────────────────────────────
+
+func (h *Handler) feedbackCmd(args []string) Result {
+	return Result{
+		Message: "Report issues at: https://github.com/codeany-ai/codeany/issues\n\nPlease include:\n1. What you expected\n2. What happened\n3. Steps to reproduce\n4. codeany version (run: codeany version)",
+	}
+}
+
+// ─── /tips ────────────────────────────────────────
+
+func (h *Handler) tipsCmd(args []string) Result {
+	tips := []string{
+		"Use /fast to quickly switch to a cheaper, faster model",
+		"Use /plan to think through complex tasks before executing",
+		"Use /commit to let the agent create git commits with good messages",
+		"Use Ctrl+O to expand/collapse tool output",
+		"Use ! <cmd> to run shell commands inline",
+		"Create skills in .codeany/skills/ to teach the agent new abilities",
+		"Use /sec for a quick security review of your code",
+		"Use /ask for quick questions without tool overhead",
+		"Use /copy to copy the last response to your clipboard",
+		"Use /export to save the entire conversation to a file",
+		"Configure MCP servers in ~/.codeany/settings.json for extra tools",
+		"Use /context to see what files and rules the agent is reading",
+	}
+	// Pick a random tip
+	tip := tips[rng.Intn(len(tips))]
+	return Result{Message: fmt.Sprintf("Tip: %s\n\nType /tips again for another tip.", tip)}
+}
+
+var rng = newRNG()
+
+func newRNG() *rand.Rand {
+	return rand.New(rand.NewSource(time.Now().UnixNano()))
 }
 
 // ─── helpers ──────────────────────────────────────
