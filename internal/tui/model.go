@@ -1051,7 +1051,9 @@ func (m *Model) renderToolBlock(block DisplayBlock) string {
 
 func (m *Model) renderToolState(tool *ToolState, isActive bool) string {
 	var b strings.Builder
+	w := m.width
 
+	// Status indicator
 	var dot string
 	var nameStyle lipgloss.Style
 	switch tool.Status {
@@ -1069,6 +1071,7 @@ func (m *Model) renderToolState(tool *ToolState, isActive bool) string {
 		nameStyle = lipgloss.NewStyle().Bold(true)
 	}
 
+	// Header line: ⏺ ToolName(args)
 	name := nameStyle.Render(tool.Name)
 	args := ""
 	if tool.InputStr != "" {
@@ -1076,42 +1079,171 @@ func (m *Model) renderToolState(tool *ToolState, isActive bool) string {
 	}
 	b.WriteString(fmt.Sprintf("  %s %s%s\n", dot, name, args))
 
+	// Running indicator
 	if tool.Status == "running" && isActive {
 		b.WriteString("    " + theme.MutedStyle.Render("Running...") + "\n")
 	}
 
-	if tool.Status == "done" && !tool.EndTime.IsZero() {
-		dur := tool.EndTime.Sub(tool.StartTime)
-		if dur > time.Second {
-			b.WriteString("    " + theme.DimText.Render(fmt.Sprintf("(%s)", formatDuration(dur))) + "\n")
-		}
+	// Output section — tool-specific rendering
+	if tool.Output != "" {
+		expanded := m.transcriptMode || tool.Expanded
+		b.WriteString(m.renderToolOutput(tool, expanded, w))
 	}
 
-	// Tool output
-	if tool.Output != "" && (m.transcriptMode || tool.Expanded) {
-		outputLines := strings.Split(tool.Output, "\n")
-		maxLines := 20
-		if len(outputLines) > maxLines {
-			for _, line := range outputLines[:maxLines] {
-				b.WriteString("    " + theme.DimText.Render(truncate(line, m.width-8)) + "\n")
-			}
-			b.WriteString("    " + theme.DimText.Render(fmt.Sprintf("... +%d lines (ctrl+o to expand)", len(outputLines)-maxLines)) + "\n")
-		} else {
-			for _, line := range outputLines {
-				b.WriteString("    " + theme.DimText.Render(truncate(line, m.width-8)) + "\n")
-			}
-		}
-	} else if tool.Output != "" {
-		lines := strings.Count(tool.Output, "\n") + 1
-		firstLine := strings.SplitN(tool.Output, "\n", 2)[0]
-		b.WriteString("    ⎿ " + theme.DimText.Render(truncate(firstLine, m.width-10)) + "\n")
-		if lines > 1 {
-			b.WriteString("    " + theme.DimText.Render(fmt.Sprintf("  ... +%d lines (ctrl+o to expand)", lines-1)) + "\n")
-		}
-	}
-
+	// Error
 	if tool.Error != "" {
-		b.WriteString("    " + theme.ErrorStyle.Render("⎿ Error: "+truncate(tool.Error, m.width-12)) + "\n")
+		errLines := strings.Split(tool.Error, "\n")
+		for i, line := range errLines {
+			if i >= 5 {
+				b.WriteString("    " + theme.ErrorStyle.Render(fmt.Sprintf("... +%d more error lines", len(errLines)-5)) + "\n")
+				break
+			}
+			b.WriteString("    " + theme.ErrorStyle.Render(truncate(line, w-8)) + "\n")
+		}
+	}
+
+	return b.String()
+}
+
+func (m *Model) renderToolOutput(tool *ToolState, expanded bool, w int) string {
+	var b strings.Builder
+	output := tool.Output
+	lines := strings.Split(output, "\n")
+	totalLines := len(lines)
+
+	// How many lines to show when collapsed
+	collapsedMax := 3
+	expandedMax := 30
+
+	switch tool.Name {
+	case "Read":
+		// For Read tool: show line count summary
+		if !expanded {
+			b.WriteString(fmt.Sprintf("    ⎿ %d lines\n", totalLines))
+		} else {
+			maxShow := expandedMax
+			if totalLines < maxShow {
+				maxShow = totalLines
+			}
+			for i := 0; i < maxShow; i++ {
+				b.WriteString("    " + theme.DimText.Render(truncate(lines[i], w-8)) + "\n")
+			}
+			if totalLines > maxShow {
+				b.WriteString("    " + theme.DimText.Render(fmt.Sprintf("... +%d lines", totalLines-maxShow)) + "\n")
+			}
+		}
+
+	case "Bash":
+		// For Bash: show output, stderr-aware
+		maxShow := collapsedMax
+		if expanded {
+			maxShow = expandedMax
+		}
+		if totalLines <= maxShow {
+			for _, line := range lines {
+				b.WriteString("    " + theme.DimText.Render(truncate(line, w-8)) + "\n")
+			}
+		} else {
+			for i := 0; i < maxShow; i++ {
+				b.WriteString("    " + theme.DimText.Render(truncate(lines[i], w-8)) + "\n")
+			}
+			b.WriteString("    " + theme.DimText.Render(fmt.Sprintf("... +%d lines (ctrl+o to expand)", totalLines-maxShow)) + "\n")
+		}
+
+	case "Edit":
+		// For Edit: show what was changed
+		if !expanded {
+			b.WriteString("    ⎿ " + theme.SuccessText.Render("file updated") + "\n")
+		} else {
+			maxShow := expandedMax
+			if totalLines < maxShow {
+				maxShow = totalLines
+			}
+			for i := 0; i < maxShow; i++ {
+				line := lines[i]
+				if strings.HasPrefix(line, "+") {
+					b.WriteString("    " + theme.SuccessText.Render(truncate(line, w-8)) + "\n")
+				} else if strings.HasPrefix(line, "-") {
+					b.WriteString("    " + theme.ErrorStyle.Render(truncate(line, w-8)) + "\n")
+				} else {
+					b.WriteString("    " + theme.DimText.Render(truncate(line, w-8)) + "\n")
+				}
+			}
+			if totalLines > maxShow {
+				b.WriteString("    " + theme.DimText.Render(fmt.Sprintf("... +%d lines", totalLines-maxShow)) + "\n")
+			}
+		}
+
+	case "Write":
+		// For Write: show file created/written
+		if !expanded {
+			b.WriteString("    ⎿ " + theme.SuccessText.Render("file written") + "\n")
+		} else {
+			maxShow := expandedMax
+			if totalLines < maxShow {
+				maxShow = totalLines
+			}
+			for i := 0; i < maxShow; i++ {
+				b.WriteString("    " + theme.DimText.Render(truncate(lines[i], w-8)) + "\n")
+			}
+			if totalLines > maxShow {
+				b.WriteString("    " + theme.DimText.Render(fmt.Sprintf("... +%d lines", totalLines-maxShow)) + "\n")
+			}
+		}
+
+	case "Glob":
+		// Show file list
+		maxShow := 8
+		if expanded {
+			maxShow = 30
+		}
+		if totalLines <= maxShow {
+			for _, line := range lines {
+				b.WriteString("    " + theme.DimText.Render(truncate(line, w-8)) + "\n")
+			}
+		} else {
+			for i := 0; i < maxShow; i++ {
+				b.WriteString("    " + theme.DimText.Render(truncate(lines[i], w-8)) + "\n")
+			}
+			b.WriteString("    " + theme.DimText.Render(fmt.Sprintf("... +%d files", totalLines-maxShow)) + "\n")
+		}
+
+	case "Grep":
+		// Show search results
+		maxShow := 5
+		if expanded {
+			maxShow = 30
+		}
+		if totalLines <= maxShow {
+			for _, line := range lines {
+				b.WriteString("    " + theme.DimText.Render(truncate(line, w-8)) + "\n")
+			}
+		} else {
+			for i := 0; i < maxShow; i++ {
+				b.WriteString("    " + theme.DimText.Render(truncate(lines[i], w-8)) + "\n")
+			}
+			b.WriteString("    " + theme.DimText.Render(fmt.Sprintf("... +%d matches", totalLines-maxShow)) + "\n")
+		}
+
+	default:
+		// Generic: show first few lines
+		maxShow := collapsedMax
+		if expanded {
+			maxShow = expandedMax
+		}
+		if totalLines <= maxShow {
+			for _, line := range lines {
+				if line != "" {
+					b.WriteString("    ⎿ " + theme.DimText.Render(truncate(line, w-10)) + "\n")
+				}
+			}
+		} else {
+			firstLine := lines[0]
+			b.WriteString("    ⎿ " + theme.DimText.Render(truncate(firstLine, w-10)) + "\n")
+			if totalLines > 1 {
+				b.WriteString("    " + theme.DimText.Render(fmt.Sprintf("  ... +%d lines (ctrl+o to expand)", totalLines-1)) + "\n")
+			}
+		}
 	}
 
 	return b.String()
