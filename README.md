@@ -1,6 +1,12 @@
 # Codeany
 
+[![Release](https://img.shields.io/github/v/release/codeany-ai/codeany)](https://github.com/codeany-ai/codeany/releases)
+[![Go](https://img.shields.io/github/go-mod/go-version/codeany-ai/codeany)](https://go.dev/)
+[![License](https://img.shields.io/github/license/codeany-ai/codeany)](LICENSE)
+
 An open-source AI-powered terminal agent for software engineering. Built in Go with [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI and the [Open Agent SDK](https://github.com/codeany-ai/open-agent-sdk-go).
+
+**41 slash commands** | **Skills & Plugins** | **MCP support** | **Chinese/IME input** | **Self-update**
 
 ## Quick Install
 

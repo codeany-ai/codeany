@@ -997,6 +997,56 @@ func (h *Handler) usageCmd(args []string) Result {
 	return Result{Message: b.String()}
 }
 
+// ─── /security-review ─────────────────────────────
+
+func (h *Handler) securityReviewCmd(args []string) Result {
+	target := strings.Join(args, " ")
+	if target == "" {
+		target = "the current codebase"
+	}
+	return Result{
+		SkillPrompt: fmt.Sprintf("Perform a security review of %s. Check for:\n1. OWASP Top 10 vulnerabilities\n2. Injection attacks (SQL, command, XSS)\n3. Authentication/authorization flaws\n4. Sensitive data exposure\n5. Insecure dependencies\n6. Hardcoded secrets or credentials\n\nProvide a severity-ranked list of findings with remediation steps.", target),
+	}
+}
+
+// ─── /refactor ────────────────────────────────────
+
+func (h *Handler) refactorCmd(args []string) Result {
+	target := strings.Join(args, " ")
+	if target == "" {
+		return Result{Message: "Usage: /refactor <file or description>\n\nAsk the agent to refactor code with best practices."}
+	}
+	return Result{
+		SkillPrompt: fmt.Sprintf("Refactor %s. Focus on:\n1. Code clarity and readability\n2. DRY principle (remove duplication)\n3. Single responsibility\n4. Better naming\n5. Simplify complex logic\n\nMake the changes, keeping functionality identical.", target),
+	}
+}
+
+// ─── /summary ─────────────────────────────────────
+
+func (h *Handler) summaryCmd(args []string) Result {
+	target := strings.Join(args, " ")
+	if target == "" {
+		return Result{
+			SkillPrompt: "Summarize this project/codebase. Provide:\n1. What the project does\n2. Tech stack and main dependencies\n3. Directory structure overview\n4. Key entry points\n5. How to build/run/test",
+		}
+	}
+	return Result{
+		SkillPrompt: fmt.Sprintf("Summarize: %s", target),
+	}
+}
+
+// ─── /ask ─────────────────────────────────────────
+
+func (h *Handler) askCmd(args []string) Result {
+	question := strings.Join(args, " ")
+	if question == "" {
+		return Result{Message: "Usage: /ask <question>\n\nAsk a question. The agent will answer without using tools."}
+	}
+	return Result{
+		SkillPrompt: fmt.Sprintf("[Answer this question directly without using any tools, just from your knowledge]: %s", question),
+	}
+}
+
 // ─── helpers ──────────────────────────────────────
 
 func min(a, b int) int {

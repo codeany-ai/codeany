@@ -94,6 +94,11 @@ func AllCommands() []CommandDef {
 		{Name: "/branch", Description: "Git branch management", HasArgs: true},
 		{Name: "/pr", Description: "Create pull request", HasArgs: true},
 		{Name: "/stash", Description: "Git stash management", HasArgs: true},
+		// Analysis
+		{Name: "/security-review", Aliases: []string{"/sec"}, Description: "Security vulnerability scan", HasArgs: true},
+		{Name: "/refactor", Description: "Refactor code", HasArgs: true},
+		{Name: "/summary", Description: "Summarize project/codebase", HasArgs: true},
+		{Name: "/ask", Description: "Quick Q&A without tools", HasArgs: true},
 	}
 }
 
@@ -221,6 +226,14 @@ func (h *Handler) Handle(input string) Result {
 		return h.prCmd(args)
 	case "/stash":
 		return h.stashCmd(args)
+	case "/security-review", "/sec":
+		return h.securityReviewCmd(args)
+	case "/refactor":
+		return h.refactorCmd(args)
+	case "/summary":
+		return h.summaryCmd(args)
+	case "/ask":
+		return h.askCmd(args)
 	default:
 		// Try skill invocation
 		if result, ok := h.HandleSkillInvocation(cmd, args); ok {
@@ -251,6 +264,10 @@ func (h *Handler) help() Result {
 	b.WriteString("  /stash         Stash management\n")
 	b.WriteString("  /bug <desc>    Investigate a bug\n")
 	b.WriteString("  /test          Run tests\n")
+	b.WriteString("  /sec           Security review\n")
+	b.WriteString("  /refactor      Refactor code\n")
+	b.WriteString("  /summary       Summarize codebase\n")
+	b.WriteString("  /ask <q>       Quick Q&A (no tools)\n")
 
 	b.WriteString("\nTools & Context:\n")
 	b.WriteString("  /mcp           Manage MCP servers\n")
