@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+          VERSION="${GITHUB_REF_NAME}"
+          COMMIT="${GITHUB_SHA}"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          LDFLAGS="-s -w -X github.com/codeany-ai/codeany/internal/version.Version=${VERSION} -X github.com/codeany-ai/codeany/internal/version.Commit=${COMMIT} -X github.com/codeany-ai/codeany/internal/version.Date=${DATE}"
+
+          for pair in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64 windows/arm64 windows/amd64; do
+            GOOS="${pair%/*}" GOARCH="${pair#*/}" CGO_ENABLED=0 \
+              go build -ldflags "${LDFLAGS}" \
+              -o "dist/codeany_${pair%/*}_${pair#*/}/codeany$( [ "${pair%/*}" = windows ] && echo .exe )" \
+              ./cmd/codeany
+          done
+
+      - name: Package artifacts
+        run: |
+          cd dist
+          for d in codeany_darwin_* codeany_linux_*; do
+            tar -czf "${d}.tar.gz" -C "$d" codeany
+          done
+          for d in codeany_windows_*; do
+            (cd "$d" && zip -q "../${d}.zip" codeany.exe)
+          done
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
