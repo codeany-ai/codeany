@@ -21,6 +21,7 @@ import (
 	"github.com/codeany-ai/codeany/internal/slash"
 	"github.com/codeany-ai/codeany/internal/theme"
 	"github.com/codeany-ai/open-agent-sdk-go/agent"
+	"github.com/codeany-ai/open-agent-sdk-go/hooks"
 	"github.com/codeany-ai/open-agent-sdk-go/types"
 )
 
@@ -209,6 +210,7 @@ func (m *Model) initAgent() tea.Cmd {
 			CustomHeaders:      m.cfg.CustomHeaders,
 			ProxyURL:           m.cfg.ProxyURL,
 			AllowedTools:       m.cfg.AllowedTools,
+			Hooks:              buildHooksConfig(m.cfg),
 		}
 
 		// Always use our interactive callback — it checks mode internally
@@ -223,6 +225,7 @@ func (m *Model) initAgent() tea.Cmd {
 
 		if m.resumeSession {
 			m.session = session.Resume(config.SessionPath(), cwd)
+			m.restoreConversation()
 		} else {
 			m.session = session.New(config.SessionPath(), cwd)
 		}
@@ -242,8 +245,10 @@ func (m *Model) createPermissionCallback() types.CanUseToolFn {
 			return allow, nil
 		}
 
-		// Check persisted "always allow" rules
-		if m.permRules.IsAllowed(tool.Name()) {
+		// Check persisted rules (always allow + pattern rules)
+		if allowed, denied := m.permRules.IsAllowedWithInput(tool.Name(), input); denied {
+			return &types.PermissionDecision{Behavior: types.PermissionDeny, Reason: "Denied by rule"}, nil
+		} else if allowed {
 			return allow, nil
 		}
 
@@ -381,13 +386,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.agent != nil {
 			m.syncFinalState()
 		}
-		// Update session metadata
+		// Update session metadata + save conversation
 		if m.session != nil {
 			msgs := 0
 			if m.agent != nil {
 				msgs = len(m.agent.GetMessages())
 			}
 			m.session.UpdateMeta(m.cfg.Model, msgs, m.currentCost, "")
+			m.saveConversation()
 		}
 		m.streamingText.Reset()
 		m.activeTools = nil
@@ -1388,6 +1394,85 @@ func (m *Model) SetPermissionMode(mode string) {
 }
 func (m *Model) SendPrompt(prompt string) {
 	// Handled via SkillPrompt in handleInputKey
+}
+
+// ─── Conversation Persistence ───────────────────
+
+func (m *Model) saveConversation() {
+	if m.session == nil {
+		return
+	}
+	var entries []session.ConversationEntry
+	for _, block := range m.blocks {
+		entry := session.ConversationEntry{
+			Role:      block.Type,
+			Content:   block.Content,
+			Timestamp: block.Timestamp.Unix(),
+		}
+		if block.Type == "tool" && len(block.Tools) > 0 {
+			entry.ToolName = block.Tools[0].Name
+			entry.ToolInput = block.Tools[0].InputStr
+		}
+		entries = append(entries, entry)
+	}
+	m.session.SaveConversation(entries)
+}
+
+func (m *Model) restoreConversation() {
+	if m.session == nil {
+		return
+	}
+	entries := m.session.LoadConversation()
+	if len(entries) == 0 {
+		return
+	}
+	for _, entry := range entries {
+		m.blocks = append(m.blocks, DisplayBlock{
+			Type:      entry.Role,
+			Content:   entry.Content,
+			Timestamp: time.Unix(entry.Timestamp, 0),
+		})
+	}
+}
+
+// ─── Hooks Builder ──────────────────────────────
+
+func buildHooksConfig(cfg *config.Config) hooks.HookConfig {
+	hc := hooks.HookConfig{}
+	if cfg.Hooks == nil {
+		return hc
+	}
+
+	for _, rule := range cfg.Hooks.PreToolUse {
+		cmd := rule.Command
+		hc.PreToolUse = append(hc.PreToolUse, hooks.HookRule{
+			Matcher: rule.Matcher,
+			Hooks: []hooks.HookFn{
+				func(ctx context.Context, toolName string, input map[string]interface{}) (string, error) {
+					out, err := exec.CommandContext(ctx, "bash", "-c", cmd).CombinedOutput()
+					if err != nil {
+						return fmt.Sprintf("Hook blocked: %s\n%s", cmd, string(out)), nil
+					}
+					return "", nil // empty = allow
+				},
+			},
+		})
+	}
+
+	for _, rule := range cfg.Hooks.PostToolUse {
+		cmd := rule.Command
+		hc.PostToolUse = append(hc.PostToolUse, hooks.HookRule{
+			Matcher: rule.Matcher,
+			Hooks: []hooks.HookFn{
+				func(ctx context.Context, toolName string, input map[string]interface{}) (string, error) {
+					exec.CommandContext(ctx, "bash", "-c", cmd).CombinedOutput()
+					return "", nil
+				},
+			},
+		})
+	}
+
+	return hc
 }
 
 // ─── Context Builder ────────────────────────────

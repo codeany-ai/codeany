@@ -425,8 +425,32 @@ func (h *Handler) permissions(args []string) Result {
 			indicator = " 🔒 Will ask for write operations"
 		}
 		return Result{Message: fmt.Sprintf("Permission mode: %s%s", mode, indicator)}
+	case "rules":
+		return Result{Message: config.LoadPermissionRules().FormatRules()}
+	case "allow":
+		if len(args) < 2 {
+			return Result{Message: "Usage: /permissions allow <tool> [pattern]\nExample: /permissions allow Bash git*"}
+		}
+		tool := args[1]
+		pattern := ""
+		if len(args) > 2 {
+			pattern = strings.Join(args[2:], " ")
+		}
+		config.LoadPermissionRules().AddAllowRule(tool, pattern)
+		return Result{Message: fmt.Sprintf("✓ Allow rule added: %s %s", tool, pattern)}
+	case "deny":
+		if len(args) < 2 {
+			return Result{Message: "Usage: /permissions deny <tool> [pattern]\nExample: /permissions deny Bash rm*"}
+		}
+		tool := args[1]
+		pattern := ""
+		if len(args) > 2 {
+			pattern = strings.Join(args[2:], " ")
+		}
+		config.LoadPermissionRules().AddDenyRule(tool, pattern)
+		return Result{Message: fmt.Sprintf("✓ Deny rule added: %s %s", tool, pattern)}
 	default:
-		return Result{Message: fmt.Sprintf("Unknown mode: %s\nUse: bypass, auto, default, plan", mode)}
+		return Result{Message: fmt.Sprintf("Unknown: %s\nUse: bypass, auto, default, plan, rules, allow <tool>, deny <tool>", mode)}
 	}
 }
 

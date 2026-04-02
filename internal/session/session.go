@@ -172,6 +172,15 @@ func FormatSessionList(sessions []SessionSummary) string {
 	return b.String()
 }
 
+// ConversationEntry stores one message in the conversation log
+type ConversationEntry struct {
+	Role      string `json:"role"` // "user", "assistant", "system", "tool"
+	Content   string `json:"content,omitempty"`
+	ToolName  string `json:"toolName,omitempty"`
+	ToolInput string `json:"toolInput,omitempty"`
+	Timestamp int64  `json:"ts"`
+}
+
 // UpdateMeta updates session metadata
 func (s *Session) UpdateMeta(model string, turns int, cost float64, title string) {
 	s.Model = model
@@ -181,6 +190,34 @@ func (s *Session) UpdateMeta(model string, turns int, cost float64, title string
 		s.Title = title
 	}
 	s.Save()
+}
+
+// SaveConversation saves the conversation log alongside the session
+func (s *Session) SaveConversation(entries []ConversationEntry) error {
+	if s.path == "" {
+		return nil
+	}
+	convPath := strings.TrimSuffix(s.path, ".json") + "-conv.json"
+	data, err := json.MarshalIndent(entries, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(convPath, data, 0644)
+}
+
+// LoadConversation loads the conversation log for this session
+func (s *Session) LoadConversation() []ConversationEntry {
+	if s.path == "" {
+		return nil
+	}
+	convPath := strings.TrimSuffix(s.path, ".json") + "-conv.json"
+	data, err := os.ReadFile(convPath)
+	if err != nil {
+		return nil
+	}
+	var entries []ConversationEntry
+	json.Unmarshal(data, &entries)
+	return entries
 }
 
 // Save persists the session to disk
