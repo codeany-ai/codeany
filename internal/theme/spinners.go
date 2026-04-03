@@ -71,6 +71,17 @@ func RandomVerb() string {
 	return SpinnerVerbs[rng.Intn(len(SpinnerVerbs))]
 }
 
+// TurnCompletionVerbs are past-tense verbs shown when a query completes
+var TurnCompletionVerbs = []string{
+	"Baked", "Brewed", "Churned", "Cogitated", "Cooked",
+	"Crunched", "Worked", "Crafted", "Forged", "Polished",
+}
+
+// RandomCompletionVerb returns a random completion verb
+func RandomCompletionVerb() string {
+	return TurnCompletionVerbs[rng.Intn(len(TurnCompletionVerbs))]
+}
+
 // ToolVerb returns an appropriate verb for a specific tool
 func ToolVerb(toolName string) string {
 	switch toolName {

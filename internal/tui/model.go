@@ -427,6 +427,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.streamingText.Reset()
 		m.activeTools = nil
 		m.thinkingText = ""
+		// Show completion message with duration
+		if m.queryStartTime != (time.Time{}) {
+			elapsed := time.Since(m.queryStartTime)
+			verb := theme.RandomCompletionVerb()
+			m.blocks = append(m.blocks, DisplayBlock{
+				Type:      "system",
+				Content:   fmt.Sprintf("%s for %s", verb, formatDuration(elapsed)),
+				Timestamp: time.Now(),
+			})
+		}
 		m.refreshViewport()
 		m.input.Focus()
 		// Ring terminal bell to notify user
