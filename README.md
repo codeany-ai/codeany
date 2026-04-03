@@ -6,7 +6,7 @@
 
 An open-source AI-powered terminal agent for software engineering. Built in Go with [Bubble Tea](https://github.com/charmbracelet/bubbletea) TUI and the [Open Agent SDK](https://github.com/codeany-ai/open-agent-sdk-go).
 
-**41 slash commands** | **Skills & Plugins** | **MCP support** | **Chinese/IME input** | **Self-update**
+**78 slash commands** | **Skills & Plugins** | **MCP support** | **Multi-provider** | **Chinese/IME** | **Self-update**
 
 ## Quick Install
 
