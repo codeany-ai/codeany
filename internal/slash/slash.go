@@ -134,6 +134,19 @@ func AllCommands() []CommandDef {
 		{Name: "/onboarding", Description: "First-time project setup"},
 		// Analysis
 		{Name: "/insights", Description: "Code insights and analysis", HasArgs: true},
+		// More Git
+		{Name: "/bughunter", Description: "Deep bug investigation", HasArgs: true},
+		{Name: "/commit-push-pr", Description: "Commit + push + create PR", HasArgs: true},
+		{Name: "/pr-comments", Description: "Review PR comments", HasArgs: true},
+		// Info
+		{Name: "/keybindings", Description: "Show keyboard shortcuts"},
+		{Name: "/release-notes", Description: "Show release notes"},
+		{Name: "/reload-plugins", Description: "Reload all plugins"},
+		{Name: "/thinkback", Description: "Reflect on completed work"},
+		{Name: "/statusline", Description: "Status line info"},
+		{Name: "/privacy", Description: "Privacy information"},
+		{Name: "/issue", Description: "Report a bug/issue", HasArgs: true},
+		{Name: "/upgrade", Description: "Alias for update"},
 	}
 }
 
@@ -311,6 +324,28 @@ func (h *Handler) Handle(input string) Result {
 		return h.onboardingCmd(args)
 	case "/insights":
 		return h.insightsCmd(args)
+	case "/bughunter":
+		return h.bughunterCmd(args)
+	case "/commit-push-pr":
+		return h.commitPushPrCmd(args)
+	case "/pr-comments":
+		return h.prCommentsCmd(args)
+	case "/keybindings":
+		return h.keybindingsCmd(args)
+	case "/release-notes":
+		return h.releaseNotesCmd(args)
+	case "/reload-plugins":
+		return h.reloadPluginsCmd(args)
+	case "/thinkback":
+		return h.thinkbackCmd(args)
+	case "/statusline":
+		return h.statuslineCmd(args)
+	case "/privacy", "/privacy-settings":
+		return h.privacyCmd(args)
+	case "/issue":
+		return h.issueCmd(args)
+	case "/upgrade":
+		return Result{Message: "Run `codeany update` from the command line to upgrade."}
 	default:
 		// Try skill invocation
 		if result, ok := h.HandleSkillInvocation(cmd, args); ok {

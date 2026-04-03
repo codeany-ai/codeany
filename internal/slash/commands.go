@@ -1539,6 +1539,95 @@ func (h *Handler) colorCmd(args []string) Result {
 	return Result{Message: "Color settings:\n\n  Current: dark (default)\n\n  Use /theme dark or /theme light to switch themes.\n  Custom colors are not yet supported."}
 }
 
+// ─── /bughunter ───────────────────────────────────
+
+func (h *Handler) bughunterCmd(args []string) Result {
+	target := strings.Join(args, " ")
+	if target == "" {
+		return Result{Message: "Usage: /bughunter <description or file>\n\nDeep investigation mode: systematically hunt for bugs."}
+	}
+	return Result{
+		SkillPrompt: fmt.Sprintf("Deep bug investigation for: %s\n\n1. Read relevant code thoroughly\n2. Trace the execution path\n3. Check edge cases and error handling\n4. Look for race conditions, null checks, off-by-ones\n5. Verify assumptions in tests\n6. Report ALL bugs found with severity and fix suggestions", target),
+	}
+}
+
+// ─── /commit-push-pr ──────────────────────────────
+
+func (h *Handler) commitPushPrCmd(args []string) Result {
+	desc := strings.Join(args, " ")
+	prompt := "Do all of these in sequence:\n1. Review git diff, stage changes, create a commit with good message\n2. Push the branch to remote\n3. Create a pull request using `gh pr create`"
+	if desc != "" {
+		prompt += fmt.Sprintf("\n\nContext: %s", desc)
+	}
+	return Result{SkillPrompt: prompt}
+}
+
+// ─── /pr-comments ─────────────────────────────────
+
+func (h *Handler) prCommentsCmd(args []string) Result {
+	prNum := ""
+	if len(args) > 0 {
+		prNum = args[0]
+	}
+	prompt := "Review the comments on the current pull request."
+	if prNum != "" {
+		prompt = fmt.Sprintf("Review comments on PR #%s.", prNum)
+	}
+	prompt += "\nSummarize the feedback and suggest responses or code changes."
+	return Result{SkillPrompt: prompt}
+}
+
+// ─── /keybindings ─────────────────────────────────
+
+func (h *Handler) keybindingsCmd(args []string) Result {
+	return Result{Message: "Keybindings:\n\n  Enter            Send message\n  Shift+Enter      New line\n  Ctrl+C           Cancel / Exit\n  Ctrl+D           Exit (empty input)\n  Ctrl+L           Clear conversation\n  Ctrl+O           Toggle expand tool output\n  Up/Down          History / Scroll\n  PgUp/PgDown      Scroll viewport\n  Tab              Complete slash command\n  Esc              Clear input / cancel\n  ! <cmd>          Run shell command\n\nDuring query:\n  Enter            Queue message (btw)\n  j/k              Scroll up/down\n  g/G              Top/bottom\n\nCustom keybindings coming in a future version.\nConfig: ~/.codeany/keybindings.json (not yet supported)"}
+}
+
+// ─── /release-notes ───────────────────────────────
+
+func (h *Handler) releaseNotesCmd(args []string) Result {
+	return Result{Message: "Codeany Release Notes\n\nv0.8.0 — 66 commands, SDK v0.5.0\n  - /agents /tasks /rewind /brief /share /insights /passes\n  - Turn completion verbs, effort control\n  - 30+ new built-in tools from SDK\n\nv0.7.0 — SDK v0.5.0 upgrade\n  - EnterPlanMode, TeamCreate, Worktree, Cron, LSP tools\n  - Effort levels, fallback model, file checkpointing\n\nv0.6.0 — OpenAI model support\n  - GPT, DeepSeek, Ollama, OpenRouter, custom providers\n  - Interactive /login wizard\n\nv0.5.0 — /btw, plan mode, plugins\nv0.4.0 — Teams, worktrees, subagents\nv0.3.0 — Permissions, hooks, session persistence\n\nFull changelog: https://github.com/codeany-ai/codeany/releases"}
+}
+
+// ─── /reload-plugins ──────────────────────────────
+
+func (h *Handler) reloadPluginsCmd(args []string) Result {
+	allPlugins := plugins.LoadAll(config.GlobalConfigDir())
+	return Result{Message: fmt.Sprintf("✓ Reloaded %d plugins", len(allPlugins))}
+}
+
+// ─── /thinkback ───────────────────────────────────
+
+func (h *Handler) thinkbackCmd(args []string) Result {
+	return Result{
+		SkillPrompt: "Reflect on what was just accomplished in this session:\n1. What tasks were completed?\n2. What approach was taken?\n3. Were there any issues or trade-offs?\n4. What could be improved?\n5. Any follow-up tasks needed?\n\nBe concise and actionable.",
+	}
+}
+
+// ─── /statusline ──────────────────────────────────
+
+func (h *Handler) statuslineCmd(args []string) Result {
+	return Result{Message: "Status line shows:\n  Model · Permission mode · Cost · Tokens ↑↓ · MCP connections · Scroll %\n\nThe header shows: codeany · model · session duration\n\nCustomization not yet available. Coming soon."}
+}
+
+// ─── /privacy ─────────────────────────────────────
+
+func (h *Handler) privacyCmd(args []string) Result {
+	return Result{Message: "Privacy:\n\n  • Conversations are stored locally in ~/.codeany/sessions/\n  • API calls go directly to your configured provider\n  • No telemetry or analytics are collected\n  • No data is shared with third parties\n  • API keys are stored in ~/.codeany/settings.json (0600 permissions)\n  • Session data never leaves your machine\n\nClear all data: rm -rf ~/.codeany/"}
+}
+
+// ─── /issue ───────────────────────────────────────
+
+func (h *Handler) issueCmd(args []string) Result {
+	desc := strings.Join(args, " ")
+	if desc == "" {
+		return Result{Message: "Report issues at: https://github.com/codeany-ai/codeany/issues\n\nOr use: /issue <description> to pre-fill"}
+	}
+	return Result{
+		SkillPrompt: fmt.Sprintf("The user wants to report this issue: %s\n\nHelp them draft a good bug report with:\n1. Steps to reproduce\n2. Expected vs actual behavior\n3. Environment info (run codeany version)\n4. Suggest opening at https://github.com/codeany-ai/codeany/issues", desc),
+	}
+}
+
 // ─── helpers ──────────────────────────────────────
 
 func min(a, b int) int {
